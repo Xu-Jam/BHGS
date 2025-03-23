@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>编号格式化工具</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; max-width: 1200px; margin: 0 auto; background: #f5f6fa; }
+        h2 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 12px; margin-bottom: 25px; }
+        .container { 
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+        textarea { 
+            width: 100%; 
+            height: 450px; 
+            padding: 18px; 
+            border: 2px solid #dcdde1; 
+            border-radius: 8px;
+            font-family: 'Fira Code', Consolas, monospace;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus { border-color: #3498db; outline: none; }
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-top: 60px;
+        }
+        button {
+            height: 50px;
+            padding: 0 30px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        button:active { transform: translateY(1px); }
+        .note { 
+            color: #7f8c8d; 
+            margin-top: 30px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        #output { background-color: #f8f9fa; }
+        .icon { font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h2>编号格式化工具</h2>
+    <div class="container">
+        <div>
+            <h3>原始输入区：</h3>
+            <textarea id="input" placeholder="统一编号
+JZJD145-10649
+JZJD145-10649
+JZJD145-9510
+JZJD145-10676
+JZJD145-10653
+JZJD145-9605
+JZJD145-11544
+JZJD145-9548
+JZJD145-9593
+JZJD145-9607
+JZJD145-11566"></textarea>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="processNumbers()">
+                <span class="icon">🔄</span>智能转换
+            </button>
+            <button onclick="copyOutput()">
+                <span class="icon">⎘</span>复制结果
+            </button>
+            <button onclick="clearContent()">
+                <span class="icon">×</span>一键清空
+            </button>
+            <button onclick="restoreInput()">
+                <span class="icon">⏮</span>恢复输入
+            </button>
+        </div>
+
+        <div>
+            <h3>格式化结果：</h3>
+            <textarea id="output" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        const EXAMPLE_DATA = `统一编号
+JZJD145-10649
+JZJD145-10649
+JZJD145-9510
+JZJD145-10676
+JZJD145-10653
+JZJD145-9605
+JZJD145-11544
+JZJD145-9548
+JZJD145-9593
+JZJD145-9607
+JZJD145-11566`;
+
+        let historyStack = [];
+        const MAX_HISTORY = 5;
+
+        function processNumbers() {
+            const inputElement = document.getElementById('input');
+            let inputText = inputElement.value.trim();
+            
+            if (!inputText) {
+                inputText = EXAMPLE_DATA;
+                alert('检测到空输入，已自动使用示例数据进行转换');
+            }
+
+            saveToHistory(inputText);
+            
+            const lines = inputText.split('\n')
+                .map(line => line.trim())
+                .filter(line => line);
+
+            const header = lines[0];
+            const dataLines = lines.slice(1);
+
+            let maxDigitLength = 0;
+            const processedLines = dataLines.map(line => {
+                const match = line.match(/(.*?)(\d+)$/);
+                if (match) {
+                    const digits = match[2];
+                    maxDigitLength = Math.max(maxDigitLength, digits.length);
+                    return {
+                        prefix: match[1],
+                        digits: digits
+                    };
+                }
+                console.warn(`忽略无效数据行：${line}`);
+                return null;
+            }).filter(Boolean);
+
+            const formattedData = processedLines.map(item => 
+                `${item.prefix}${item.digits.padStart(maxDigitLength, '0')}`
+            );
+
+            const outputContent = [header, ...formattedData].join('\n');
+            document.getElementById('output').value = outputContent;
+        }
+
+        function saveToHistory(content) {
+            historyStack.unshift(content);
+            if (historyStack.length > MAX_HISTORY) historyStack.pop();
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('output');
+            output.select();
+            try {
+                document.execCommand('copy');
+                alert('内容已复制到剪贴板！');
+            } catch (err) {
+                alert('自动复制失败，请手动选择文本复制');
+            }
+        }
+
+        function clearContent() {
+            if (confirm('确定要清空所有内容吗？')) {
+                document.getElementById('input').value = '';
+                document.getElementById('output').value = '';
+            }
+        }
+
+        function restoreInput() {
+            if (historyStack.length > 0) {
+                document.getElementById('input').value = historyStack[0];
+                alert('已恢复最近一次处理前的输入内容');
+            } else {
+                alert('历史记录为空，无法恢复');
+            }
+        }
+    </script>
+</body>
+</html>
